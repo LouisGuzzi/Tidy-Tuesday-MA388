@@ -1,0 +1,57 @@
+---
+title: "TidyTuesday Week 2"
+author: "CDT Louis Guzzi"
+date: "1/21/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library (tidyverse)
+library (ggplot2)
+library (tidygeocoder)
+library (ggrepel)
+library (ggtext)
+
+
+chocolate <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-01-18/chocolate.csv')
+
+```
+
+
+```{r}
+chocolate2 <- chocolate %>%
+  mutate (company_location = as.character(company_location))%>%
+  filter (company_location == "U.S.A.")%>% 
+  select (company_location, company_manufacturer, country_of_bean_origin)
+
+locs <- chocolate2 %>% geocode(company_location,long=x.end,lat=y.end)
+locs1 <- chocolate2 %>% geocode(country_of_bean_origin,long=x,lat=y)
+locs1 <- left_join(locs,locs1)
+
+worldmap <- borders ("world", color = "chocolate4", fill="white")
+
+locs2<- locs1 %>%
+  mutate (x.end = -100, y.end = 40)
+
+chocolate2 %>% 
+ ggplot () +
+ worldmap +
+ geom_curve (data = locs2 %>% filter (x>x.end), aes (x=x, y=y, xend=x.end, yend=y.end), color="chocolate4", curvature =-.03)+
+  theme_void() +
+  labs (title= "Where the US Imports its Cocoa Beans From")+
+  theme ( text=element_text(size=8, family= "serif", color= "chocolate4"))+
+  theme(plot.title  = element_text(hjust=0.5))
+  
+  
+
+
+
+
+
+  
+
+
+```
+
+
