@@ -1,0 +1,143 @@
+---
+title: "Lesson 6 Solution"
+author: "Daniel Baller"
+date: "1/20/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+library(Lahman)
+library(tidyverse)
+library(knitr)
+```
+
+## Review
+
+This is the last lesson of the intro to R part of the course.  Today, we'll review some R graphing concepts.  
+
+Major concepts:
+
+* five tidyverse verbs
+
+* relational data bases
+
+* split, apply, combine data
+
+* plotting in R (ggplot)
+
+[Last year, the Baseball Hame of Fame announced that no players received the minimum vote of 75% to be inducted](https://www.nytimes.com/2021/01/26/sports/baseball/hall-of-fame-schilling.html?searchResultPosition=2).  Famous players on the ballot included Barry Bonds, Roger Clemens, and Curt Schilling.
+
+Using the HallofFame data frame in the Lahman package, plot the number of Hall of Fame inductees each year by the Baseball Writers Association of America (BBWAA) in the player category.  Change the `y`-axis label to "Hall of Fame inductees" and `x`-axis to "year". The HallofFame data frame contains a row for every year a player was voted on and whether he was inducted.
+
+Suggested steps:
+
+* filter the frame to contain only inducted players (`inducted` == "Y", `category` == "Player", `votedBy` == "BBWAA") 
+
+* determine how many players were inducted each year (note: years with no players inducted will not show up in the data. How do you adujst for this.)
+
+* plot the number of inducted players by year 
+
+```{r}
+yearlyHF= HallOfFame %>%
+  filter (inducted=="Y" & 
+            category == "Player" &
+            votedBy== "BBWAA")%>%
+  group_by (yearID) %>%
+  count(yearID) 
+
+yearlyHF = yearlyHF %>%
+  right_join (data.frame(yearID = 1940:2018)) %>%
+  mutate (n= replace_na(n,0)
+```
+
+```{r, echo = FALSE, include=FALSE}
+yearlyHF %>%
+  ggplot(aes(x=yearID,y=n)) +
+  geom_line()
+```
+
+Roger Clemens and Curt Schilling have been on the ballot for the Hall of Fame several times.  Last year, again, they were not elected into the Hall of Fame.  
+
+## Clemens and Schilling 
+
+![Roger Clemens](clemens.jpg){width=50%}
+
+![Curt Schilling](schilling.jpg){width=50%}
+
+First, let's create a data set containing all pitchers with over 500 innings pitched with an indicator of whether they are in the Hall of Fame. In the dataset add career wins, earned run average, and strike outs.
+
+```{r}
+#get career wins, earned run average, and strikeouts 
+careers <- Pitching %>% 
+  group_by(playerID) %>% 
+  summarize(W = sum(W),
+            ER = sum(ER),
+            IPouts = sum(IPouts), #IPouts is innings pitched/3 
+            SO = sum(SO)) %>% 
+  mutate(ERA = 9*ER/(IPouts/3)) %>% #ERA = 9 x Erned Runs / Innings Pitched
+  filter(IPouts/3 > 500)
+
+# add whether they were inducted in the hall of fame
+careers <- HallOfFame %>% 
+  filter(inducted == "Y",
+         category == "Player") %>% 
+  select(playerID, inducted) %>% 
+  right_join(careers) %>% 
+  mutate(inducted = replace_na(inducted,"N"))
+```
+
+Let's look at career strikeouts by whether or not they were inducted.
+
+```{r}
+careers %>% 
+  ggplot(aes(x = SO, y = ERA, color = inducted)) +
+  geom_point()
+```
+
+Let's figure out where Clemens and Schilling are.
+
+```{r, fig.cap = "ERA vs SO by Hall of Fame status for pitchers with at least 500 innings pitched"}
+library(ggrepel)
+clemschil <- careers %>% 
+  filter(playerID %in% c("clemero02", "schilcu01")) 
+
+careers %>% 
+  ggplot(aes(x = SO, y = ERA, color = inducted)) +
+  geom_point() +
+  geom_text_repel(data = clemschil, aes(x = SO, y = ERA, label = playerID))
+```
+
+## Your turn
+
+In the last figure, there is a uninducted player with about 2500 strikeouts and a 2.5 ERA.  Determine who that player is and add his playerID to the plot above.
+
+```{r}
+unknown <- careers %>%
+  filter (ERA <2.5& SO >= 2400 & inducted =="N")%>%
+  filter (playerID == "kershcl01")
+  
+
+careers %>% 
+  ggplot(aes(x = SO, y = ERA, color = inducted)) +
+  geom_point() +
+  geom_text_repel(data = unknown, aes(x = SO, y = ERA, label = playerID))
+```
+
+Create comparative plots for the for the distribution of strikeouts and ERA for players that were inducted and those that were not. What do these plots tell us.  
+```{r}
+careers %>%
+ ggplot (aes(x=SO, y=inducted, fill=inducted))+
+  geom_boxplot ()+
+  labs (y="Inducted", x = "Strikeouts", title = "Distribution of Strike Outs by Hall of Fame Status 1940-2020")+ 
+  theme_classic()
+
+careers %>%
+ ggplot (aes(x=ERA, y=inducted, fill=inducted))+
+  geom_boxplot ()+
+  labs (y="Inducted", x = "ERA", title = "Distribution of Strike Outs by Hall of Fame Status 1940-2020")+
+  theme_classic()
+```
+
